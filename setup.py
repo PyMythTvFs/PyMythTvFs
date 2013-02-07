@@ -21,6 +21,6 @@ setup(name='pymythtvfs',
     author='Toby Gray',
     author_email='toby.gray@gmail.com',
     url='http://github.com/tobygray/pymythtvfs',
-    packages=['mythtvfs'],
+    py_modules=['mythtvfs'],
 	scripts=['pymythtvfs'],
 	version='1.0',)
