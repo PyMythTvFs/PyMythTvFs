@@ -15,6 +15,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 from distutils.core import setup
+import mythtvfs
 
 setup(name='pymythtvfs',
 	description='Mythtv Fuse Filesystem',
@@ -23,4 +24,5 @@ setup(name='pymythtvfs',
     url='http://github.com/tobygray/pymythtvfs',
     py_modules=['mythtvfs'],
 	scripts=['pymythtvfs'],
-	version='1.0',)
+    data_files=[('man/man8', ['pymythtvfs.8'])],
+	version=str(mythtvfs.VERSION))

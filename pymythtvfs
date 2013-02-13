@@ -18,18 +18,21 @@
 import mythtvfs
 
 def showLicense():
-	print """pymythtvfs
+	print """pymythtvfs - version %s
 THIS PROGRAM IS DISTRIBUTED UNDER THE GPL AND COMES WITH NO WARRANTIES
 READ THE FILE COPYING AND README FOR MORE INFORMATION
-"""
+""" % mythtvfs.VERSION
 
 if __name__ == "__main__":
-    showLicense()
     fs = mythtvfs.Fs()
     try:
-        fs.parse()
+        if fs.parse():
+            showLicense()
+            fs.connect()
+            fs.main()
+        elif fs.parser.print_version:
+            print """pymythtvfs - version %s""" % mythtvfs.VERSION
     except mythtvfs.MissingOptionException as e:
         print "Missing option: " + e.missing
         print
         fs.parser.print_help()
-    fs.main()

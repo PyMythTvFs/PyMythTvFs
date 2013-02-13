@@ -28,6 +28,9 @@ import traceback
 # Let fuse know what API we are expecting
 fuse.fuse_python_api = (0, 2)
 
+VERSION = 0.1
+""" Version of pymythtvfs. """
+
 DIR_SEP = '/'
 """ Directory separator character. """
 
@@ -36,6 +39,7 @@ CACHE_TIME = 30
 Minimum time period in seconds between asking the backend for the
 latest list of recordings.
 """
+
 
 class MissingOptionException(Exception):
     """ Exception used to indicate a missing mount option. """
@@ -170,14 +174,22 @@ class Fs(fuse.Fuse):
     """ Fuse file system object for MythTV recordings. """
     def __init__(self, *args, **kw):
         fuse.Fuse.__init__(self, *args, **kw)
-        self.be = MythTV.MythBE()
+        self.be = None
         class WrappedFileHandle(FileHandle):
             def __init__(fself, path, flags, *mode):
                 super(WrappedFileHandle, fself).__init__(self, path, flags, *mode)
         self.file_class = WrappedFileHandle
         self._root_cache = None
         self._last_root_time = time.time()
+        # Setup options
+        self.parser.add_option("--version", dest="print_version",
+            action="store_true", default=False,
+            help="output version and exit")
 
+    def connect(self):
+        """ Connects to the MythTV backend. """
+        self.be = MythTV.MythBE()
+            
     def getRoot(self):
         """ Returns the root directory of this file system. """
         time_since_last_update = time.time() - self._last_root_time
