@@ -79,6 +79,12 @@ class FileBase(object):
             if d != "":
                 cwd = cwd[d]
         return cwd
+        
+    def _clean_name(self, name):
+        ret = name
+        for c in self._fs.invalid_chars_list:
+            ret = ret.replace(c, self._fs.replacement_char)
+        return ret
 
 class File(FileBase):
     """ Represents a file in the file system. """
@@ -102,10 +108,11 @@ class Recording(File):
         
     def getFileName(self):
         """ Returns the filename of this file. """
-        return self._recording.formatPath(
+        name = self._recording.formatPath(
             u"%s - %s" % (
                 self._recording['title'],
                 self._recording['subtitle'])).encode('UTF-8')
+        return self._clean_name(name)
                 
     def open(self):
         """ Returns an open file handle for the contents of this file. """
@@ -183,9 +190,22 @@ class Fs(fuse.Fuse):
         self._last_root_time = time.time()
         # Setup options
         self.show_version = False
+        self.invalid_chars = "<>|:\\?*"
+        self.replacement_char= "_"
+        self.invalid_chars_list = []
+        self.parser.add_option(mountopt="invalid-chars", metavar="INVALID_CHARS",
+            dest="invalid_chars", type="string",
+            help="invalid characters to replace in names [default: %s]" % self.invalid_chars)
+        self.parser.add_option(mountopt="replacement-char", metavar="REPLACEMENT_CHAR",
+            dest="replacement_char", type="string",
+            help="replacement character for invalid characters [default: %s]" % self.replacement_char)
         self.parser.add_option("--version", dest="show_version",
             action="store_true", help="output version and exit")
 
+    def _split_invalid_chars(self):
+        """ Splits the invalid_chars string into a list. """
+        self.invalid_chars_list = list(self.invalid_chars)
+            
     def connect(self):
         """ Connects to the MythTV backend. """
         self.be = MythTV.MythBE()
@@ -201,6 +221,8 @@ class Fs(fuse.Fuse):
     def parse(self):
         """ Parses and verifies mount options. """
         fuse.Fuse.parse(self, values=self, errex=1)
+        # Process options
+        self._split_invalid_chars()
         # Return false if filesystem shouldn't be mounted
         return not self.show_version
 

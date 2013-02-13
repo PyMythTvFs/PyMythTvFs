@@ -1,7 +1,6 @@
 TODO:
 -----
 
-* Replacement of invalid characters
 * Formatting of directories, including subdir logic
 * Delete file = delete from mythtv
 * Marking files as watched on certain conditions
