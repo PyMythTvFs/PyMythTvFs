@@ -6,3 +6,4 @@ TODO:
 * Delete file = delete from mythtv
 * Marking files as watched on certain conditions
 * Backend configuration
+* Autogenerate man page which includes mount options by using a help formatter for optparse

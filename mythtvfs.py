@@ -182,9 +182,9 @@ class Fs(fuse.Fuse):
         self._root_cache = None
         self._last_root_time = time.time()
         # Setup options
-        self.parser.add_option("--version", dest="print_version",
-            action="store_true", default=False,
-            help="output version and exit")
+        self.show_version = False
+        self.parser.add_option("--version", dest="show_version",
+            action="store_true", help="output version and exit")
 
     def connect(self):
         """ Connects to the MythTV backend. """
@@ -200,7 +200,9 @@ class Fs(fuse.Fuse):
 
     def parse(self):
         """ Parses and verifies mount options. """
-        fuse.Fuse.parse(self, errex=1)
+        fuse.Fuse.parse(self, values=self, errex=1)
+        # Return false if filesystem shouldn't be mounted
+        return not self.show_version
 
     def getattr(self, path):
         """ Returns the attributes for the given file. """
