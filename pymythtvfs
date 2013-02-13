@@ -16,6 +16,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import mythtvfs
+import fuse
 
 def showLicense():
 	print """pymythtvfs - version %s
@@ -30,9 +31,15 @@ if __name__ == "__main__":
             showLicense()
             fs.connect()
             fs.main()
+            exit(0)
         elif fs.parser.print_version:
             print """pymythtvfs - version %s""" % mythtvfs.VERSION
+            exit(0)
     except mythtvfs.MissingOptionException as e:
         print "Missing option: " + e.missing
         print
         fs.parser.print_help()
+        exit(1)
+    except fuse.FuseError as e:
+        print "Error: " + e.message
+        exit(2)
