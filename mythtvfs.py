@@ -74,7 +74,6 @@ class FileBase(object):
     def resolve(self, path):
         """ Resolves the given path into a FileBase object """
         cwd = self
-        print path
         for d in path.rstrip(DIR_SEP).split(DIR_SEP):
             if d != "":
                 cwd = cwd[d]
