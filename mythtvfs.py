@@ -230,7 +230,6 @@ class Fs(fuse.Fuse):
         try:
             return self.getRoot().resolve(path).getattr()
         except:
-            traceback.print_exc()
             return -errno.ENOENT
         
     def readdir(self, path, offset):

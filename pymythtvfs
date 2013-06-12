@@ -17,12 +17,20 @@
 
 import mythtvfs
 import fuse
+import sys
+
+def safe_print(text):
+    try:
+        print text
+    except:
+        # Ignore any errors
+        pass
 
 def showLicense():
-	print """pymythtvfs - version %s
+	safe_print("""pymythtvfs - version %s
 THIS PROGRAM IS DISTRIBUTED UNDER THE GPL AND COMES WITH NO WARRANTIES
 READ THE FILE COPYING AND README FOR MORE INFORMATION
-""" % mythtvfs.VERSION
+""" % mythtvfs.VERSION)
 
 if __name__ == "__main__":
     fs = mythtvfs.Fs()
@@ -30,16 +38,19 @@ if __name__ == "__main__":
         if fs.parse():
             showLicense()
             fs.connect()
+            sys.stdout = open('/dev/null', 'w')
+            sys.stderr = open('/dev/null', 'w')
+            sys.stdin = open('/dev/null', 'r')
             fs.main()
             exit(0)
         elif fs.parser.print_version:
-            print """pymythtvfs - version %s""" % mythtvfs.VERSION
+            safe_print("""pymythtvfs - version %s""" % mythtvfs.VERSION)
             exit(0)
     except mythtvfs.MissingOptionException as e:
-        print "Missing option: " + e.missing
-        print
+        safe_print("Missing option: " + e.missing)
+        safe_print()
         fs.parser.print_help()
         exit(1)
     except fuse.FuseError as e:
-        print "Error: " + e.message
+        safe_print("Error: " + e.message)
         exit(2)
