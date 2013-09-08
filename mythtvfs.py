@@ -119,13 +119,21 @@ class Recording(File):
         self._atime = self._mtime
         self._dupIdx = 0
         
-    def getFileName(self):
-        """ Returns the filename of this file. """
+    def _getFilePath(self):
+        """ Returns the full path of this file. """
         basename = unicode(self._fs.format_string).format(**self._recording)
         if self._dupIdx > 0:
             basename += u" (%d)" % self._dupIdx
         name = self._recording.formatPath(basename).encode('UTF-8')
         return self._clean_name(name)
+        
+    def getSplitPath(self):
+        """ Returns a pre-split path list for this file """
+        return os.path.split(self._getFilePath())
+    
+    def getBaseName(self):
+        """ Returns the basename of this file. """
+        return os.path.basename(self._getFilePath())
                 
     def open(self):
         """ Returns an open file handle for the contents of this file. """
@@ -137,8 +145,9 @@ class Recording(File):
 
 class Directory(FileBase):
     """ Represents a directory in the file system. """
-    def __init__(self, fs):
+    def __init__(self, fs, basename):
         super(Directory, self).__init__(fs)
+        self._basename = basename
         self._contents = {}
         self._is_dir = True
     
@@ -146,20 +155,40 @@ class Directory(FileBase):
         """ Returns a FileBase with the name given by key. """
         return self._contents[key]
         
+    def getBaseName(self):
+        """ Returns the basename of this file. """
+        return self._basename
+        
     def readdir(self):
         """ Returns a list of files in this directory. """
         return self._contents.values()
 
 class Root(Directory):
     """ Represents the root directory of the file system "/". """
+    @logAllExceptions
     def __init__(self, fs):
-        super(Root, self).__init__(fs)
+        super(Root, self).__init__(fs, "")
         for r in self._fs.be.getRecordings():
             rf = Recording(self._fs, r)
-            # Make sure the filename is unique
-            while rf.getFileName() in self._contents.keys():
+            currentDir = self
+            splitPath = rf.getSplitPath()
+            # Find the right subdirectory to place it in
+            while len(splitPath) > 1:
+                dirName = splitPath[0]
+                splitPath = splitPath[1:]
+                try:
+                    # Try to place it in a pre-existing directory
+                    currentDir = currentDir._contents[dirName]
+                except KeyError:
+                    # No pre-existing directory, create a new one
+                    newDir = Directory(self._fs, dirName)
+                    currentDir._contents[dirName] = newDir
+                    currentDir = newDir
+            # Walked through all the directories, so time to place it
+            # Make sure the name is unique
+            while rf.getBaseName() in currentDir._contents.keys():
                 rf.incrementDeDup()
-            self._contents[rf.getFileName()] = rf
+            currentDir._contents[rf.getBaseName()] = rf
 
 class FileHandle(object):
     """ Handle representing an open recording file. """
@@ -217,7 +246,7 @@ class Fs(fuse.Fuse):
         self.replacement_char= "_"
         self.invalid_chars_list = []
         self.log_file = None
-        self.format_string = "{title} - {subtitle}"
+        self.format_string = os.path.join("{title}","{title} - {subtitle}")
         self.parser.add_option(mountopt="invalid-chars", metavar="INVALID_CHARS",
             dest="invalid_chars", type="string",
             help="invalid characters to replace in names [default: %s]" % self.invalid_chars)
@@ -281,5 +310,5 @@ class Fs(fuse.Fuse):
     def readdir(self, path, offset):
         """ Returns the contents of the requested directory. """
         for f in self.getRoot().resolve(path).readdir():
-            yield fuse.Direntry(f.getFileName())
+            yield fuse.Direntry(f.getBaseName())
             
