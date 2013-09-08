@@ -40,6 +40,17 @@ Minimum time period in seconds between asking the backend for the
 latest list of recordings.
 """
 
+def logAllExceptions(function):
+    """
+    Simple Python decorator to log exceptions
+    """
+    def wrapper(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except:
+            traceback.print_exc()
+            raise
+    return wrapper
 
 class MissingOptionException(Exception):
     """ Exception used to indicate a missing mount option. """
@@ -142,16 +153,19 @@ class Root(Directory):
 
 class FileHandle(object):
     """ Handle representing an open recording file. """
+    @logAllExceptions
     def __init__(self, fs, path, flags, *mode):
         self._fs = fs
         self._file = fs.getRoot().resolve(path)
         self._fh = self._file.open()
     
+    @logAllExceptions
     def read(self, length, offset):
         """ Reads a given length of bytes at an offset into file. """
         self._fh.seek(offset)
         return self._fh.read(length)
-    
+
+    @logAllExceptions
     def release(self, flags):
         """ Releases this FileHandle, closing any open resources. """
         self._fh.release()
@@ -225,13 +239,15 @@ class Fs(fuse.Fuse):
         # Return false if filesystem shouldn't be mounted
         return not self.show_version
 
+    @logAllExceptions
     def getattr(self, path):
         """ Returns the attributes for the given file. """
         try:
             return self.getRoot().resolve(path).getattr()
         except:
             return -errno.ENOENT
-        
+
+    @logAllExceptions
     def readdir(self, path, offset):
         """ Returns the contents of the requested directory. """
         for f in self.getRoot().resolve(path).readdir():
