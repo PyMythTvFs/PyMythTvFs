@@ -49,7 +49,8 @@ def logAllExceptions(function):
         try:
             return function(*args, **kwargs)
         except:
-            traceback.print_exc()
+            stackText = traceback.format_exc()
+            logging.error("Uncaught exception: %s", stackText)
             raise
     return wrapper
 
