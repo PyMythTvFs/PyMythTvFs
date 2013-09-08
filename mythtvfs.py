@@ -24,6 +24,7 @@ import errno
 import fuse
 import MythTV
 import traceback
+import logging
 
 # Let fuse know what API we are expecting
 fuse.fuse_python_api = (0, 2)
@@ -216,14 +217,19 @@ class Fs(fuse.Fuse):
         self.invalid_chars = "<>|:\\?*"
         self.replacement_char= "_"
         self.invalid_chars_list = []
+        self.log_file = None
         self.parser.add_option(mountopt="invalid-chars", metavar="INVALID_CHARS",
             dest="invalid_chars", type="string",
             help="invalid characters to replace in names [default: %s]" % self.invalid_chars)
         self.parser.add_option(mountopt="replacement-char", metavar="REPLACEMENT_CHAR",
             dest="replacement_char", type="string",
             help="replacement character for invalid characters [default: %s]" % self.replacement_char)
+        self.parser.add_option(mountopt="log-file", metavar="LOG_FILE",
+            dest="log_file", type="string",
+            help="file to use for output of errors and warnings")
         self.parser.add_option("--version", dest="show_version",
             action="store_true", help="output version and exit")
+        self.logger = None
 
     def _split_invalid_chars(self):
         """ Splits the invalid_chars string into a list. """
@@ -231,6 +237,14 @@ class Fs(fuse.Fuse):
             
     def connect(self):
         """ Connects to the MythTV backend. """
+        # Open the log file if necessary
+        if self.log_file != None:
+            self._logger = logging.basicConfig(
+                filename=self.log_file,
+                format='%(asctime)s:%(levelname)s- %(message)s',
+                level=logging.INFO
+                )
+        
         self.be = MythTV.MythBE()
             
     def getRoot(self):
@@ -240,6 +254,9 @@ class Fs(fuse.Fuse):
             self._root_cache = Root(self)
             self._last_root_time = time.time()
         return self._root_cache
+        
+    def getLogger(self):
+        return self._logger
 
     def parse(self):
         """ Parses and verifies mount options. """

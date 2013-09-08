@@ -18,36 +18,35 @@
 import mythtvfs
 import fuse
 import sys
+import logging
 
-def safe_print(text):
-    try:
-        print text
-    except:
-        # Ignore any errors
-        pass
-
-def showLicense():
-	safe_print("""pymythtvfs - version %s
+def showLicense(print_fn = None):
+    text = ("""pymythtvfs - version %s
 THIS PROGRAM IS DISTRIBUTED UNDER THE GPL AND COMES WITH NO WARRANTIES
 READ THE FILE COPYING AND README FOR MORE INFORMATION
 """ % mythtvfs.VERSION)
+    if print_fn:
+        print_fn(text)
+    else:
+        print text
 
 if __name__ == "__main__":
     fs = mythtvfs.Fs()
     try:
+        showLicense()
         if fs.parse():
-            showLicense()
             fs.connect()
+            # Make sure the license ends in the log
+            showLicense(logging.info)
             fs.main()
             exit(0)
         elif fs.parser.print_version:
-            safe_print("""pymythtvfs - version %s""" % mythtvfs.VERSION)
             exit(0)
     except mythtvfs.MissingOptionException as e:
-        safe_print("Missing option: " + e.missing)
-        safe_print()
+        print "Missing option: " + e.missing
+        print
         fs.parser.print_help()
         exit(1)
     except fuse.FuseError as e:
-        safe_print("Error: " + e.message)
+        print "Error: " + e.message
         exit(2)
