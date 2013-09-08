@@ -121,11 +121,9 @@ class Recording(File):
         
     def getFileName(self):
         """ Returns the filename of this file. """
-        basename = u"%s - %s" % (
-                self._recording['title'],
-                self._recording['subtitle'])
+        basename = unicode(self._fs.format_string).format(**self._recording)
         if self._dupIdx > 0:
-            basename += " (%d)" % self._dupIdx
+            basename += u" (%d)" % self._dupIdx
         name = self._recording.formatPath(basename).encode('UTF-8')
         return self._clean_name(name)
                 
@@ -219,12 +217,16 @@ class Fs(fuse.Fuse):
         self.replacement_char= "_"
         self.invalid_chars_list = []
         self.log_file = None
+        self.format_string = "{title} - {subtitle}"
         self.parser.add_option(mountopt="invalid-chars", metavar="INVALID_CHARS",
             dest="invalid_chars", type="string",
             help="invalid characters to replace in names [default: %s]" % self.invalid_chars)
         self.parser.add_option(mountopt="replacement-char", metavar="REPLACEMENT_CHAR",
             dest="replacement_char", type="string",
             help="replacement character for invalid characters [default: %s]" % self.replacement_char)
+        self.parser.add_option(mountopt="format-string", metavar="FORMAT_STRING",
+            dest="format_string", type="string",
+            help="format string for files [default: %s]" % self.format_string)
         self.parser.add_option(mountopt="log-file", metavar="LOG_FILE",
             dest="log_file", type="string",
             help="file to use for output of errors and warnings")
