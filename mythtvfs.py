@@ -180,7 +180,7 @@ class FileHandle(object):
     @logAllExceptions
     def release(self, flags):
         """ Releases this FileHandle, closing any open resources. """
-        self._fh.release()
+        self._fh.close()
             
 class StatResult(object):
     """ Encapsulates the required fields for the return from getattr for Fuse. """
