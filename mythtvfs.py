@@ -115,18 +115,25 @@ class Recording(File):
         self._ctime = datetimeToInt(recording['recstartts'])
         self._mtime = datetimeToInt(recording['recendts'])
         self._atime = self._mtime
+        self._dupIdx = 0
         
     def getFileName(self):
         """ Returns the filename of this file. """
-        name = self._recording.formatPath(
-            u"%s - %s" % (
+        basename = u"%s - %s" % (
                 self._recording['title'],
-                self._recording['subtitle'])).encode('UTF-8')
+                self._recording['subtitle'])
+        if self._dupIdx > 0:
+            basename += " (%d)" % self._dupIdx
+        name = self._recording.formatPath(basename).encode('UTF-8')
         return self._clean_name(name)
                 
     def open(self):
         """ Returns an open file handle for the contents of this file. """
         return self._recording.open()
+        
+    def incrementDeDup(self):
+        """ Increments the duplicate filename index"""
+        self._dupIdx += 1
 
 class Directory(FileBase):
     """ Represents a directory in the file system. """
@@ -149,6 +156,9 @@ class Root(Directory):
         super(Root, self).__init__(fs)
         for r in self._fs.be.getRecordings():
             rf = Recording(self._fs, r)
+            # Make sure the filename is unique
+            while rf.getFileName() in self._contents.keys():
+                rf.incrementDeDup()
             self._contents[rf.getFileName()] = rf
 
 class FileHandle(object):
