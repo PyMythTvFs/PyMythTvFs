@@ -38,9 +38,6 @@ if __name__ == "__main__":
         if fs.parse():
             showLicense()
             fs.connect()
-            sys.stdout = open('/dev/null', 'w')
-            sys.stderr = open('/dev/null', 'w')
-            sys.stdin = open('/dev/null', 'r')
             fs.main()
             exit(0)
         elif fs.parser.print_version:
