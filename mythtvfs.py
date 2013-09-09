@@ -262,6 +262,7 @@ class Fs(fuse.Fuse):
         self.parser.add_option("--version", dest="show_version",
             action="store_true", help="output version and exit")
         self.logger = None
+        self.be_hostname = None
 
     def _split_invalid_chars(self):
         """ Splits the invalid_chars string into a list. """
@@ -278,11 +279,17 @@ class Fs(fuse.Fuse):
                 )
         
         self.be = MythTV.MythBE()
-            
+        self.be_hostname = self.be_hostname
+
+    @logAllExceptions
     def getRoot(self):
         """ Returns the root directory of this file system. """
         time_since_last_update = time.time() - self._last_root_time
         if self._root_cache == None or time_since_last_update > CACHE_TIME:
+            # Reconnect to the same backend to make sure the MySQL connection is fresh
+            # This prevents a OperationalError: (2006, 'MySQL server has gone away')
+            # exception occurring at some later point
+            self.be = MythTV.MythBE(self.be_hostname)
             self._root_cache = Root(self)
             self._last_root_time = time.time()
         return self._root_cache
