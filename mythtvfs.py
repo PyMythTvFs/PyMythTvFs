@@ -242,7 +242,7 @@ class Fs(fuse.Fuse):
         self._last_root_time = time.time()
         # Setup options
         self.show_version = False
-        self.invalid_chars = "<>|:\\?*"
+        self.invalid_chars = "<>|:\\?*'\""
         self.replacement_char= "_"
         self.invalid_chars_list = []
         self.log_file = None
