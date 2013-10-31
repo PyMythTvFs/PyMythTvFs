@@ -75,9 +75,11 @@ class FileBase(object):
         self._ctime = 0
         self._size = 0
     
+    @logAllExceptions
     def getattr(self):
         """ Returns the stat results for this file. """
         return StatResult(
+            fs = self._fs,
             dir = self._is_dir,
             atime = self._atime,
             ctime = self._ctime,
@@ -91,6 +93,11 @@ class FileBase(object):
             if d != "":
                 cwd = cwd[d]
         return cwd
+
+    @logAllExceptions
+    def unlink(self):
+        """ Remove this file """
+        return -errno.ENOSYS
         
     def _clean_name(self, name):
         ret = name
@@ -143,6 +150,19 @@ class Recording(File):
         """ Increments the duplicate filename index"""
         self._dupIdx += 1
 
+    def unlink(self):
+        if not self._fs.allow_delete:
+            return -errno.EPERM
+        try:
+            self._recording.delete()
+            # Tell the parent to rescan
+            self._fs.invalidateCache()
+            return 0
+        except:
+            stackText = traceback.format_exc()
+            logging.debug("Exception in deleting: %s", stackText)
+            return -errno.EBADF
+
 class Directory(FileBase):
     """ Represents a directory in the file system. """
     def __init__(self, fs, basename):
@@ -162,6 +182,12 @@ class Directory(FileBase):
     def readdir(self):
         """ Returns a list of files in this directory. """
         return self._contents.values()
+
+    def unlink(self):
+        if not self._fs.allow_delete:
+            return -errno.EPERM
+        # TODO need to remove from parent
+        return 0
 
 class Root(Directory):
     """ Represents the root directory of the file system "/". """
@@ -211,13 +237,17 @@ class FileHandle(object):
             
 class StatResult(object):
     """ Encapsulates the required fields for the return from getattr for Fuse. """
-    def __init__(self, dir, atime, ctime, mtime, size):
+    def __init__(self, fs, dir, atime, ctime, mtime, size):
         self.st_mode = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
         if dir:
             self.st_mode = (self.st_mode | stat.S_IFDIR |
                 stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         else:
             self.st_mode = self.st_mode | stat.S_IFREG
+
+        if fs.allow_delete and dir:
+            # Allow directories to be written to by user and group
+            self.st_mode = self.st_mode | stat.S_IWUSR | stat.S_IWGRP
             
         self.st_ino = 1L
         self.st_dev = 1L
@@ -240,13 +270,17 @@ class Fs(fuse.Fuse):
         self.file_class = WrappedFileHandle
         self._root_cache = None
         self._last_root_time = time.time()
-        # Setup options
+        self._logger = None
+        self.be_hostname = None
+        # Setup default options
         self.show_version = False
         self.invalid_chars = "<>|:\\?*'\""
         self.replacement_char= "_"
         self.invalid_chars_list = []
         self.log_file = None
         self.format_string = os.path.join("{title}","{title} - {subtitle}")
+        self.allow_delete = False
+        # Add mount options
         self.parser.add_option(mountopt="invalid-chars", metavar="INVALID_CHARS",
             dest="invalid_chars", type="string",
             help="invalid characters to replace in names [default: %s]" % self.invalid_chars)
@@ -259,10 +293,13 @@ class Fs(fuse.Fuse):
         self.parser.add_option(mountopt="log-file", metavar="LOG_FILE",
             dest="log_file", type="string",
             help="file to use for output of errors and warnings")
+        self.parser.add_option(mountopt="allow-delete", metavar="ALLOW_DELETE",
+            dest="allow_delete", action="store_true",
+            help="allow deletion of recordings via file system")
+        # Add process options
         self.parser.add_option("--version", dest="show_version",
             action="store_true", help="output version and exit")
-        self.logger = None
-        self.be_hostname = None
+        
 
     def _split_invalid_chars(self):
         """ Splits the invalid_chars string into a list. """
@@ -297,6 +334,14 @@ class Fs(fuse.Fuse):
     def getLogger(self):
         return self._logger
 
+    def invalidateCache(self):
+        """
+        Used to indicate that the cache of recordings needs to be rebuilt.
+        
+        Called by file operations which alter the cache, such as unlink.
+        """
+        self._root_cache = None
+        
     def parse(self):
         """ Parses and verifies mount options. """
         fuse.Fuse.parse(self, values=self, errex=1)
@@ -318,4 +363,12 @@ class Fs(fuse.Fuse):
         """ Returns the contents of the requested directory. """
         for f in self.getRoot().resolve(path).readdir():
             yield fuse.Direntry(f.getBaseName())
-            
+
+    @logAllExceptions
+    def unlink(self, path):
+        """ Unlink the given path. """
+        if not self.allow_delete:
+            # Not allowed to delete
+            return -errno.EPERM
+        f = self.getRoot().resolve(path)
+        return f.unlink()
