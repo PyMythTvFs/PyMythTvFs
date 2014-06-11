@@ -280,6 +280,8 @@ class Fs(fuse.Fuse):
         self.log_file = None
         self.format_string = os.path.join("{title}","{title} - {subtitle}")
         self.allow_delete = False
+        self.dbuser = None
+        self.dbpassword = None
         # Add mount options
         self.parser.add_option(mountopt="invalid-chars", metavar="INVALID_CHARS",
             dest="invalid_chars", type="string",
@@ -296,6 +298,12 @@ class Fs(fuse.Fuse):
         self.parser.add_option(mountopt="allow-delete", metavar="ALLOW_DELETE",
             dest="allow_delete", action="store_true",
             help="allow deletion of recordings via file system")
+        self.parser.add_option(mountopt="dbuser",
+            dest="dbuser", type="string",
+            help="username for authenticating with MythTV database")
+        self.parser.add_option(mountopt="dbpassword",
+            dest="dbpassword", type="string",
+            help="password for authenticating with MythTV database")
         # Add process options
         self.parser.add_option("--version", dest="show_version",
             action="store_true", help="output version and exit")
@@ -314,8 +322,10 @@ class Fs(fuse.Fuse):
                 format='%(asctime)s:%(levelname)s- %(message)s',
                 level=logging.INFO
                 )
-        
-        self.be = MythTV.MythBE()
+        db = None
+        if self.dbuser != None and self.dbpassword != None:
+           db = MythTV.MythDB(DBUserName = self.dbuser, DBPassword = self.dbpassword)
+        self.be = MythTV.MythBE(db = db)
         self.be_hostname = self.be_hostname
 
     @logAllExceptions
@@ -326,6 +336,9 @@ class Fs(fuse.Fuse):
             # Reconnect to the same backend to make sure the MySQL connection is fresh
             # This prevents a OperationalError: (2006, 'MySQL server has gone away')
             # exception occurring at some later point
+            #
+            # Force the module to reload to compensate for upgrades.
+            reload(MythTV)
             self.be = MythTV.MythBE(self.be_hostname)
             self._root_cache = Root(self)
             self._last_root_time = time.time()
